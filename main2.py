@@ -55,7 +55,7 @@ def main():
         for miner in miner_list:
             miner_count_number = miner_count_number + 1
             miners_status.append('')
-            result = data_base.get_one_miner(miner[0])
+            result = data_base.get_one_miner(miner[0])  # miner[0] it's name of the miner
             thr = threading.Thread(target=scan_miner, args=(result, miner_count_number), name=miner[0])
             thr.start()
         threading.Timer(10, Global_miner_scaner.all_miner_print, args=(miners_status,)).start()
