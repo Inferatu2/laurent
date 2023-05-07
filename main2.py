@@ -8,31 +8,31 @@ from config import conf_to_dict
 from miner import Miner
 
 
-
-def scan_miner(result,miner_count_number):
+def scan_miner(result, miner_count_number):
     miner = Miner(result)
     miner.err = "random text because first 'if miner.err' must be True"
     while True:
         if miner.err:
             miner.connect(int(configuration['miner_connect_time_out']))
         if miner.err:
-            print(f'miner {miner.name} не в сети\n',end='')
+            print(f'miner {miner.name} не в сети\n', end='')
             miners_status[miner_count_number] = miner
             time.sleep(int(configuration['scan_time']))
             continue
-                #тут надо запустиь процесс перезагрузки
+            # тут надо запустиь процесс перезагрузки
         miner.get_start()
         if miner.err:
-            print(f'miner {miner.name} не в сети\n',end='')
+            print(f'miner {miner.name} не в сети\n', end='')
             miners_status[miner_count_number] = miner
             time.sleep(int(configuration['scan_time']))
             continue
-                #ребутаем
-        print('Пoдключен ' + miner.name +'\n',end='')
+            # ребутаем
+        print('Пoдключен ' + miner.name + '\n', end='')
         miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
         miner.print()  # выводим результат
         miners_status[miner_count_number] = miner
         time.sleep(int(configuration['scan_time']))
+
 
 def all_miner_print():
     middle_temp_list = []
@@ -45,8 +45,9 @@ def all_miner_print():
                     if rig.err:
                         print(f'=========  {rig.name} offline  ==========')
                     else:
-                        print(f"{rig.name:<10} {rig.timeup:<10} {rig.obhash:<20} {rig.valid_share:<7} {rig.rez_share:<9}"
-                              f"{rig.card_count:<5}")
+                        print(
+                            f"{rig.name:<10} {rig.timeup:<10} {rig.obhash:<20} {rig.valid_share:<7} {rig.rez_share:<9}"
+                            f"{rig.card_count:<5}")
             #         middle_temp_list.append(sum(rig.templist)/rig.card_count)
             # middle_temp = sum(middle_temp_list)//len(middle_temp_list)
 
@@ -75,9 +76,9 @@ def main():
             miner_count_number = miner_count_number + 1
             miners_status.append('')
             result = data_base.get_one_miner(miner[0])
-            thr = threading.Thread(target=scan_miner, args=(result,miner_count_number), name=miner[0])
+            thr = threading.Thread(target=scan_miner, args=(result, miner_count_number), name=miner[0])
             thr.start()
-        threading.Timer(10,all_miner_print).start()
+        threading.Timer(10, all_miner_print).start()
 
 
 if __name__ == '__main__':
