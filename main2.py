@@ -38,7 +38,7 @@ def all_miner_print():
     middle_temp_list = []
     while True:
         with threading.Lock():
-            print('=============печатаем сведеную таблицу==============')
+            print('=============печатаем сведеную таблицу===============')
             print(f"имя        аптайм     хешрейд              шары    битшары   карты")
             for rig in miners_status:
                 if rig:
