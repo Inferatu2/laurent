@@ -4,6 +4,7 @@ import time
 import DB_SQL
 import os
 import threading
+import Global_miner_scaner
 from config import conf_to_dict
 from miner import Miner
 
@@ -33,27 +34,6 @@ def scan_miner(result, miner_count_number):
         miners_status[miner_count_number] = miner
         time.sleep(int(configuration['scan_time']))
 
-
-def all_miner_print():
-    middle_temp_list = []
-    while True:
-        with threading.Lock():
-            print('=============печатаем сведеную таблицу===============')
-            print(f"имя        аптайм     хешрейд              шары    битшары   карты")
-            for rig in miners_status:
-                if rig:
-                    if rig.err:
-                        print(f'=========  {rig.name} offline  ==========')
-                    else:
-                        print(
-                            f"{rig.name:<10} {rig.timeup:<10} {rig.obhash:<20} {rig.valid_share:<7} {rig.rez_share:<9}"
-                            f"{rig.card_count:<5}")
-            #         middle_temp_list.append(sum(rig.templist)/rig.card_count)
-            # middle_temp = sum(middle_temp_list)//len(middle_temp_list)
-
-        time.sleep(15)
-
-
 def main():
     global configuration
     global file_path_db
@@ -78,7 +58,7 @@ def main():
             result = data_base.get_one_miner(miner[0])
             thr = threading.Thread(target=scan_miner, args=(result, miner_count_number), name=miner[0])
             thr.start()
-        threading.Timer(10, all_miner_print).start()
+        threading.Timer(10, Global_miner_scaner.all_miner_print, args=(miners_status,)).start()
 
 
 if __name__ == '__main__':
