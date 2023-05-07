@@ -14,7 +14,7 @@ class Db:
 
     def get_miner_list(self):
         '''get miner list from miner table'''
-        self.cursor.execute(f"""SELECT №,IP,port FROM miner;""")
+        self.cursor.execute(f"""SELECT №,IP,port FROM miner WHERE scan = 'yes';""")
         return self.cursor.fetchall()
 
     def get_one_miner(self,n):

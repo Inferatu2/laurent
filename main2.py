@@ -4,35 +4,50 @@ import time
 import DB_SQL
 import os
 import threading
-import Global_miner_scaner
+import datetime
+import global_miner_scaner
+from termcolor import cprint
 from config import conf_to_dict
 from miner import Miner
 
 
 def scan_miner(result, miner_count_number):
+    """Мы не закрываем подключение по сокету между опросами, оно постоянно открыто и майнер постоянно опрашивается
+    поэтому есть переменная miner.err, если она пустая, значит майнер подключен, надо только првоести опрос,
+    если она хоть что-то содержит, значит была ошибка и надо пытаться подключиться.
+    Функци miner.connect и miner.getstart обнуляют эту переменную или сохраняют туда исключение"""
     miner = Miner(result)
-    miner.err = "random text because first 'if miner.err' must be True"
     while True:
-        if miner.err:
+        if not miner.online:
             miner.connect(int(configuration['miner_connect_time_out']))
-        if miner.err:
-            print(f'miner {miner.name} не в сети\n', end='')
-            miners_status[miner_count_number] = miner
+        if not miner.online:
+            miner_offline(miner, miner_count_number)
             time.sleep(int(configuration['scan_time']))
             continue
             # тут надо запустиь процесс перезагрузки
         miner.get_start()
         if miner.err:
-            print(f'miner {miner.name} не в сети\n', end='')
-            miners_status[miner_count_number] = miner
+            miner_offline(miner, miner_count_number)
             time.sleep(int(configuration['scan_time']))
             continue
             # ребутаем
-        print('Пoдключен ' + miner.name + '\n', end='')
-        miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
-        miner.print()  # выводим результат
-        miners_status[miner_count_number] = miner
+        if not miner.err:
+            miner_online(miner, miner_count_number)
         time.sleep(int(configuration['scan_time']))
+
+def global_miner():
+    with threading.Lock():
+        global_miner_scaner.all_miner_print(miners_status, int(configuration['all_miner_result']))
+
+def miner_offline(miner, miner_count_number):
+    miners_status[miner_count_number] = miner
+    print(f'майнер {miner.name} оффлайн {datetime.datetime.now() - miner.time}\n', end='')
+def miner_online(miner, miner_count_number):
+    print('Пoдключен ' + miner.name + '\n', end='')
+    miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
+    miner.print()  # выводим результат
+    miners_status[miner_count_number] = miner
+    miner.time = datetime.datetime.now()
 
 def main():
     global configuration
@@ -58,7 +73,9 @@ def main():
             result = data_base.get_one_miner(miner[0])  # miner[0] it's name of the miner
             thr = threading.Thread(target=scan_miner, args=(result, miner_count_number), name=miner[0])
             thr.start()
-        threading.Timer(10, Global_miner_scaner.all_miner_print, args=(miners_status,)).start()
+
+        threading.Timer(10, global_miner_scaner.all_miner_print,
+                        args=()).start()
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 scan_time=10
-connect_at_moment=200
 reboot=true
 miner_connect_time_out=3
 miner_time_out_after_start = 120
+all_miner_result=5
