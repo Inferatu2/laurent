@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import time
-import DB_SQL
+import datetime
 import os
 import threading
-import datetime
+import time
+
+import DB_SQL
 import global_miner_scaner
-from termcolor import cprint
 from config import conf_to_dict
 from miner import Miner
 
@@ -35,21 +35,26 @@ def scan_miner(result, miner_count_number):
             miner_online(miner, miner_count_number)
         time.sleep(int(configuration['scan_time']))
 
+
 def global_miner():
     while True:
         with threading.Lock():
             global_miner_scaner.all_miner_print(miners_status, int(configuration['all_miner_result']))
         time.sleep(int(configuration['all_miner_result']))
 
+
 def miner_offline(miner, miner_count_number):
     miners_status[miner_count_number] = miner
     print(f'майнер {miner.name} оффлайн {datetime.datetime.now() - miner.time}\n', end='')
+
+
 def miner_online(miner, miner_count_number):
     print('Пoдключен ' + miner.name + '\n', end='')
     miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
     miner.print()  # выводим результат
     miners_status[miner_count_number] = miner
     miner.time = datetime.datetime.now()
+
 
 def main():
     global configuration

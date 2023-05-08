@@ -45,12 +45,13 @@ class Miner:
             self.api_result = json.loads(data_bytes.decode('utf-8'))
         except json.decoder.JSONDecodeError as err:
             self.err = f'Ответ от майнера {self.name} некорректен'
-        except ConnectionAbortedError as err:
+        except (ConnectionAbortedError, ConnectionResetError) as err:
             self.err = f"Майнер {self.name} разорвал соединение"
-        except ConnectionResetError as err:
-            self.err = f"Майнер {self.name} разорвал соединение"
+            self.close()
         except socket.timeout as err:
             self.err = f"майнер {self.name} долго отвечает"
+        except Exception as err:
+            self.err = f"майнер {self.name} неизвестная ошибка {err}"
         else:
             self.api_result = list(self.api_result['result'])          # в json ответе нам интересен только result, там список
             self.err = ''
@@ -118,3 +119,4 @@ class Miner:
 
     def close(self):
         self.s.close()
+        self.online = False
