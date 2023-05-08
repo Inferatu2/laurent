@@ -60,6 +60,10 @@ def main():
     global configuration
     global file_path_db
     global miners_status
+    global miners_online
+    global miners_offline
+    miners_online = {}
+    miners_offline = {}
     miners_status = []
     main_scan_work = False
     file_path = str(os.getcwd())
