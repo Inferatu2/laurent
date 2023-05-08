@@ -36,8 +36,10 @@ def scan_miner(result, miner_count_number):
         time.sleep(int(configuration['scan_time']))
 
 def global_miner():
-    with threading.Lock():
-        global_miner_scaner.all_miner_print(miners_status, int(configuration['all_miner_result']))
+    while True:
+        with threading.Lock():
+            global_miner_scaner.all_miner_print(miners_status, int(configuration['all_miner_result']))
+        time.sleep(int(configuration['all_miner_result']))
 
 def miner_offline(miner, miner_count_number):
     miners_status[miner_count_number] = miner
@@ -74,8 +76,7 @@ def main():
             thr = threading.Thread(target=scan_miner, args=(result, miner_count_number), name=miner[0])
             thr.start()
 
-        threading.Timer(10, global_miner_scaner.all_miner_print,
-                        args=()).start()
+        threading.Timer(10, global_miner).start()
 
 
 if __name__ == '__main__':

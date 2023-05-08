@@ -3,7 +3,6 @@ import threading
 import time
 
 def all_miner_print(miners_status, sleep_time):
-
         miners_status = [x for x in miners_status if x]
         print('=============печатаем сведеную таблицу===============')
         print(f"имя        аптайм     хешрейд              шары    битшары   карты")
