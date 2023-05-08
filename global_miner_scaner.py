@@ -11,6 +11,7 @@ def all_miner_check(miners_online, miners_offline, sleep_time):
             f"{rig.card_count:<5}")
     for rig_name, rig in miners_offline.items():
         print(f'\t {rig.name} offline  {datetime.datetime.now() - rig.time}')
+
     # all_miner_analise(miners_status)
 
 

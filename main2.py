@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import datetime
+from datetime import datetime
 import os
 import threading
 import time
 
 import DB_SQL
 import global_miner_scaner
+from laurent import Laurent
 from config import conf_to_dict
 from miner import Miner
 
@@ -46,16 +47,38 @@ def global_miner():
 def miner_offline(miner):
     miners_offline[miner.name] = miner
     miners_online.pop(miner.name, '')
-    print(f'майнер {miner.name} оффлайн {datetime.datetime.now() - miner.time}\n', end='')
+    miner_time_off = str(datetime.now() - miner.time)
+    print(f'майнер {miner.name} оффлайн {miner_time_off}\n', end='')
+    miner_time_off = miner_time_off.split(':')[-1]
+    miner_time_off = miner_time_off.split('.')[0] # строчка только для теста
+    if not miner.laurent_await:
+        miner_start_relay(miner, miner_time_off)
 
+
+def miner_start_relay(miner, miner_time_off):
+    if int(miner_time_off) > int(configuration['laurent_time_scan']) and not miner.laurent_await:
+        data_base = DB_SQL.Db(file_path_db)
+        laurent_connect_data = data_base.get_laurent_data(miner.laurent)
+        if laurent_connect_data != None:
+            relay = Laurent(laurent_connect_data)
+            data_base.close()
+            if relay.connect():
+                if relay.login():
+                    print(f'{miner.name} ребутаем цикл {miner.number_attempt_reset}')
+                    thr = threading.Thread(target=relay.rig_scan, args=(miner, int(configuration['laurent_time_scan'])),
+                                           name=f'rig {miner.name}, laurent {relay.name}, relay {miner.relay}')
+                    miner.laurent_await = True
+                    thr.start()
+        else:
+            print(f'не существует реле {miner.laurent}')
 
 def miner_online(miner):
     print('Пoдключен ' + miner.name + '\n', end='')
     miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
     miner.print()  # выводим результат
+    miner.time = datetime.datetime.now()
     miners_online[miner.name] = miner
     miners_offline.pop(miner.name, '')
-    miner.time = datetime.datetime.now()
 
 
 def main():
@@ -63,6 +86,7 @@ def main():
     global file_path_db
     global miners_online
     global miners_offline
+    laurent_list = []
     miners_online = {}
     miners_offline = {}
     main_scan_work = False
@@ -81,7 +105,8 @@ def main():
             result = data_base.get_one_miner(miner[0])  # miner[0] it's name of the miner
             thr = threading.Thread(target=scan_miner, args=(result, ), name=miner[0])
             thr.start()
-
+        laurent_list = data_base.get_laurent_list()
+        data_base.close()
         threading.Timer(10, global_miner).start()
 
 

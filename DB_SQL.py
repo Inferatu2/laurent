@@ -4,7 +4,7 @@ class Db:
     def __init__(self,path):
         '''connect db'''
         try:
-            self.conn = sqlite3.connect(path)
+            self.conn = sqlite3.connect(path, check_same_thread=True)
             self.cursor = self.conn.cursor()
             self.cursor_laurent = self.conn.cursor()
             self.enable = True
@@ -22,7 +22,13 @@ class Db:
         self.cursor.execute(f"SELECT * FROM miner WHERE № = ?;", (n,))
         return self.cursor.fetchone()
 
+    def get_laurent_list(self):
+        self.cursor.execute(f"""SELECT * FROM laurent;""")
+        return self.cursor.fetchall()
     def get_laurent_data(self,n):
         '''get all default parameters from laurent table'''
         self.cursor_laurent.execute(f"SELECT * FROM laurent WHERE № = {n};")
         return self.cursor_laurent.fetchone()
+
+    def close(self):
+        self.conn.close()

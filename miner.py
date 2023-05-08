@@ -21,6 +21,8 @@ class Miner:
         # print('загрузили конфигурацию ' + self.name)
         self.time = datetime.now()
         self.online = False
+        self.laurent_await = False
+        self.number_attempt_reset = 0
 
 
     def connect(self,timeout):

@@ -1,8 +1,4 @@
-# -*- coding: utf-8 -*-
 import socket
-from datetime import datetime
-import time
-
 
 class Laurent():
     def __init__(self,args):
@@ -13,6 +9,8 @@ class Laurent():
     def connect(self):
         self.sock_laurent = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock_laurent.settimeout(3)
+        if self.name == 'фейк':
+            print('подключаем реле')
         try:
             self.sock_laurent.connect((self.ip, int(self.port)))
         except:
@@ -26,7 +24,7 @@ class Laurent():
         data_byte = self.sock_laurent.recv(1024)
         data_byte = data_byte.decode('utf-8')
         if data_byte == "#OK\r\n":
-            temp = '$KE,PSW,SET,' + self.password + '\r\n'
+            temp = '$KE,PSW,SET,' + password + '\r\n'
             self.sock_laurent.sendall(temp.encode('utf-8'))
             data_byte = self.sock_laurent.recv(1024)
             data_byte = data_byte.decode('utf-8')
@@ -41,26 +39,34 @@ class Laurent():
             return False
 
     def rig_reset(self, time):
-        temp = f'$KE,REL,{relay},1,{time}\r\n'.encode('utf-8')
+        temp = f'$KE,REL,{relay},{time}\r\n'.encode('utf-8')
         self.sock_laurent.sendall(temp)
         data_bytes = self.sock_laurent.recv(1024)
-        print(data_bytes)
 
     def rig_scan(self,miner, laurent_time_scan):
         if not miner.online:
             if miner.number_attempt_reset == 0:
-                self.rig_reset(1)
+                self.rig_reset(0.5)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 1:
-                self.rig_reset(1)
+                self.rig_reset(0.5)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 2:
                 self.rig_reset(5)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 3:
-                self.rig_reset(1)
+                self.rig_reset(0.5)
                 miner.laurent_await = True
             number_attempt_reset = number_attempt_reset + 1
-            time.sleep(laurent_time_scan)
+        sleep(laurent_time_scan)
         miner.number_attempt_reset = miner.number_attempt_reset + 1
         miner.laurent_await = False
+
+def main():
+    args = (2, 'фейк', '192.168.1.102', '2424', 'Laurent')
+    relay = Laurent(args)
+    relay.connect()
+
+
+if __name__ == '__main__':
+    main()
