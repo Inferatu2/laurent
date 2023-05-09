@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
 import os
 import threading
 import time
+from datetime import datetime
 
 import DB_SQL
 import global_miner_scaner
-from laurent import Laurent
 from config import conf_to_dict
+from laurent import Laurent
 from miner import Miner
 
 
@@ -39,7 +39,7 @@ def scan_miner(result):
 
 def global_miner():
     while True:
-        with threading.Lock():
+        with threading.RLock():
             global_miner_scaner.all_miner_check(miners_online, miners_offline, int(configuration['all_miner_result']))
         time.sleep(int(configuration['all_miner_result']))
 
@@ -48,35 +48,39 @@ def miner_offline(miner):
     miners_offline[miner.name] = miner
     miners_online.pop(miner.name, '')
     miner_time_off = str(datetime.now() - miner.time)
-    print(f'майнер {miner.name} оффлайн {miner_time_off}\n', end='')
-    miner_time_off = miner_time_off.split(':')[-1]
-    miner_time_off = miner_time_off.split('.')[0] # строчка только для теста
-    if not miner.laurent_await:
+    miner_time_off = miner_time_off.split(':')[-1]  # -1 для теста, в оригинале -2
+    miner_time_off = miner_time_off.split('.')[0]  # строчка только для теста
+    if miner.reboot_bool and not miner.laurent_await:
         miner_start_relay(miner, miner_time_off)
 
 
 def miner_start_relay(miner, miner_time_off):
     if int(miner_time_off) > int(configuration['laurent_time_scan']) and not miner.laurent_await:
+        """miner_time_off это минуты от общего оффлайн времени майнера
+        configuration['laurent_time_scan'] это через сколько надо ребутать риг. Подразумевается, что ндао
+        подохдать, может он сам восстановится
+        miner.laurent_await true если ребут был и мы выжидаем те самые configuration['laurent_time_scan']"""
         data_base = DB_SQL.Db(file_path_db)
         laurent_connect_data = data_base.get_laurent_data(miner.laurent)
-        if laurent_connect_data != None:
+        if laurent_connect_data is not None:  # get None if this row does not exist
             relay = Laurent(laurent_connect_data)
             data_base.close()
-            if relay.connect():
-                if relay.login():
-                    print(f'{miner.name} ребутаем цикл {miner.number_attempt_reset}')
-                    thr = threading.Thread(target=relay.rig_scan, args=(miner, int(configuration['laurent_time_scan'])),
-                                           name=f'rig {miner.name}, laurent {relay.name}, relay {miner.relay}')
-                    miner.laurent_await = True
-                    thr.start()
+            relay.start(miner)
+            print(f"{miner.name} ребутаем цикл {miner.number_attempt_reset} из ветки "
+                  f"'rig {miner.name}, laurent {miner.laurent}, relay {miner.relay}'")
+            thr = threading.Thread(target=relay.start, args=(miner,),
+                                   name=f'rig {miner.name}, laurent {miner.laurent}, relay {miner.relay}')
+            miner.laurent_await = True
+            thr.start()
         else:
             print(f'не существует реле {miner.laurent}')
 
+
 def miner_online(miner):
-    print('Пoдключен ' + miner.name + '\n', end='')
-    miner.api_to_class()  # распарсим список и сохраняем в атрибуты класса
+    # print('Пoдключен ' + miner.name + '\n', end='')
+    miner.json_to_class()  # распарсим список и сохраняем в атрибуты класса
     miner.print()  # выводим результат
-    miner.time = datetime.datetime.now()
+    miner.time = datetime.now()
     miners_online[miner.name] = miner
     miners_offline.pop(miner.name, '')
 
@@ -86,10 +90,9 @@ def main():
     global file_path_db
     global miners_online
     global miners_offline
-    laurent_list = []
+
     miners_online = {}
     miners_offline = {}
-    main_scan_work = False
     file_path = str(os.getcwd())
     file_path_conf = os.path.join(file_path, "config.txt")
     configuration = conf_to_dict(file_path_conf)
@@ -98,14 +101,11 @@ def main():
     file_path_db = os.path.join(file_path, 'mine_conf.db')
     data_base = DB_SQL.Db(file_path_db)
     if data_base.enable:
-        print('Подключились к базе данных')
-        main_scan_work = True  # False если есть ошибка подключения к базе, не даст продолжить
         miner_list = data_base.get_miner_list()
         for miner in miner_list:
-            result = data_base.get_one_miner(miner[0])  # miner[0] it's name of the miner
-            thr = threading.Thread(target=scan_miner, args=(result, ), name=miner[0])
+            result = data_base.get_one_miner(miner[0])  # miner[0] it's primary key of the miner
+            thr = threading.Thread(target=scan_miner, args=(result,), name=miner[0])
             thr.start()
-        laurent_list = data_base.get_laurent_list()
         data_base.close()
         threading.Timer(10, global_miner).start()
 

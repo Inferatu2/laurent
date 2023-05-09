@@ -24,7 +24,7 @@ class Laurent():
         data_byte = self.sock_laurent.recv(1024)
         data_byte = data_byte.decode('utf-8')
         if data_byte == "#OK\r\n":
-            temp = '$KE,PSW,SET,' + password + '\r\n'
+            temp = '$KE,PSW,SET,' + self.password + '\r\n'
             self.sock_laurent.sendall(temp.encode('utf-8'))
             data_byte = self.sock_laurent.recv(1024)
             data_byte = data_byte.decode('utf-8')
@@ -39,23 +39,23 @@ class Laurent():
             return False
 
     def rig_reset(self, time):
-        temp = f'$KE,REL,{relay},{time}\r\n'.encode('utf-8')
+        temp = f'$KE,REL,19,1,1\r\n'.encode('utf-8')
         self.sock_laurent.sendall(temp)
         data_bytes = self.sock_laurent.recv(1024)
 
     def rig_scan(self,miner, laurent_time_scan):
         if not miner.online:
             if miner.number_attempt_reset == 0:
-                self.rig_reset(0.5)
+                self.rig_reset(1)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 1:
-                self.rig_reset(0.5)
+                self.rig_reset(1)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 2:
                 self.rig_reset(5)
                 miner.laurent_await = True
             if miner.number_attempt_reset == 3:
-                self.rig_reset(0.5)
+                self.rig_reset(1)
                 miner.laurent_await = True
             number_attempt_reset = number_attempt_reset + 1
         sleep(laurent_time_scan)
@@ -66,6 +66,8 @@ def main():
     args = (2, 'фейк', '192.168.1.102', '2424', 'Laurent')
     relay = Laurent(args)
     relay.connect()
+    relay.login()
+    relay.rig_reset(1)
 
 
 if __name__ == '__main__':

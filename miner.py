@@ -2,33 +2,49 @@ import socket
 import json
 from datetime import datetime
 
+
 class Miner:
 
     def __init__(self, result):
-        '''загружаем эталонные значения для майнера в атрибуты класса'''
-        self.err = ''
-        self.number, self.name, self.scan_bool, self.ip, self.port, self.card_count_norm, self.min_hash, \
-        self.max_temp, self.max_rez_share, self.reboot_bool, self.laurent, self.relay, \
-            self.message_bool = result
+        """load default values from result for this miner
+        result values example (4, 'miner2', 'yes', '127.0.0.1', 3334, 1, 18, 60, 0, 'yes', 2, 20, 'yes')
+        self.scan_bool - do program need to scan this miner / надо ли вообще сканить этот майнер
+        self.card_count_norm - default number of cards in rig / сколько должно быть карт в риге
+        self.min_hash - minimum hashrate when the alarm is not triggered  / минимальный хешрейт
+        self.max_temp - max card temperature / выбираем карту с макс температурой и сохраняем сюда
+        self.max_rez_share - max regected shares when the alarm is not triggered /макс допустимое кол-во битых шар
+        self.reboot_bool - must reboot in laurent  / ндао ли перезагружать риг с помощью лорент
+        self.laurent - laurent number in table 'laurent' in SQLite /к какому лорент из табл 'laurent' привязан риг
+        self.relay - relay numbe in laurent /номер реле у лорент
+        self.message_bool - do program need to message about error of this miner /отправлять ли тревогу в телегу
+        self.time - time, when this miner online last time / сохраняем туда время последнего онлайна
+        self.laurent_await - if laurent try reboot and wait result, if true - dont try reboot one's more
+        self.err - save error in this value / тут всякие ошибки храним
+        """
+        self.number, self.name, self.scan_bool, self.ip, self.port, self.card_count_norm, self.min_hash, self.max_temp, \
+            self.max_rez_share, self.reboot_bool, self.laurent, self.relay, self.message_bool = result
 
         self.scan_bool = True if self.scan_bool.lower() == 'yes' else False
         self.reboot_bool = True if self.reboot_bool.lower() == 'yes' else False
         self.message_bool = True if self.message_bool.lower() == 'yes' else False
-            # загружаем порядковый номер майнера, его имя, надо ли его сканировать или оставить в покое,
-            # айпишник, порт для api, сколько карт в нем должно быть, минимально допустимый хешрейд
-            # максимально допустимую температуру, макс допустимое количество битых шар, надо ли ребутать автоматом
-            # номер реле к которому привязан майнер и надо ли отправлять уведомление если майнер чудит
-        # print('загрузили конфигурацию ' + self.name)
         self.time = datetime.now()
         self.online = False
         self.laurent_await = False
         self.number_attempt_reset = 0
+        self.err = ''
+        self.timeup = 0
+        self.obhash = 0
+        self.valid_share = 0
+        self.rez_share = 0  # regected shares
+        self.hashlist = list()  # list hashrates of card
+        self.templist = list()  # temperature list of card
+        self.kullist = list()
+        self.pool = ''
 
-
-    def connect(self,timeout):
+    def connect(self, timeout):
+        """connect for this miner"""
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.settimeout(timeout)
-        '''устанавливаем соединение с манером'''
         try:
             self.s.connect((self.ip, self.port))
         except:
@@ -38,7 +54,10 @@ class Miner:
             self.online = True
 
     def get_start(self):
-        '''отправляем стандартный запрос майнеру, получаем ответ о состоянии'''
+        """sending a standard request get_start1
+        waiting json answer
+        example {"id":0,"jsonrpc":"2.0","result":["PM 6.2c - ETC", "5", "20966;0;0", "20966", "0;0;0", ' \
+                           '"off", "73;52", "europe.etchash-hub.miningpoolhub.com:20615", "0;1;0;0"]}\n"""
 
         params = '{"id":0,"jsonrpc":"2.0","method":"miner_getstat1"}'
         try:
@@ -55,40 +74,31 @@ class Miner:
         except Exception as err:
             self.err = f"майнер {self.name} неизвестная ошибка {err}"
         else:
-            self.api_result = list(self.api_result['result'])          # в json ответе нам интересен только result, там список
+            self.api_result = list(self.api_result['result'])  # в json ответе нам интересен только result, там список
             self.err = ''
 
-    def api_to_class(self):
-        '''присваиваем полученные от майнера данные в атрибуты класса'''
+    def json_to_class(self):
+        '''parsing the json response into class attributes'''
+        self.timeup = int(self.api_result[1])  # timeup of miner
+        self.obhash = float(int(self.api_result[2].split(';')[0]) / 1000)  # result hashrate, changing to MH/s
+        self.valid_share = int(self.api_result[2].split(';')[1])  # validshare
+        self.rez_share = int(self.api_result[2].split(';')[2])  # regected shares
+        self.hashlist = self.api_result[3].split(';')  # list hashrates of card
 
-        self.timeup = int(self.api_result[1])                              # аптайм майнера
-        self.obhash = float(int(self.api_result[2].split(';')[0]) / 1000)    # общий хешрейд, из kH/s переводим в MH/s
-        self.valid_share = int(self.api_result[2].split(';')[1])           # пойманые шары
-        self.rez_share = int(self.api_result[2].split(';')[2])             # битые шары
-        self.hashlist = self.api_result[3].split(';')                      # хешрейд карт отдельно
-        self.templist = list()                          # температуры карт
-        self.kullist = list()                           # скорость вентиляторов карт
-
-        b = True  # все нечетные зн 6-го элемента с температурами в один список, все четные со скоростью кулера в другой
-        j = 0
-        for i in self.api_result[6].split(';'):
-            if b:
-                self.templist.append(int(i))
-                b = False
-                j += 1          # заодно считаем количество карт
+        for i, temp in enumerate(self.api_result[6].split(';')):
+            if i % 2 == 0:
+                self.templist.append(int(temp)) # only even values are the temperature of the cards
             else:
-                self.kullist.append(i)
-                b = True
-        del b
-        self.card_count = j
-        del j
+                self.kullist.append(int(temp))
+        self.card_count = len(self.templist)
         self.pool = self.api_result[7]
 
     def print(self):
-        '''выводим данные на экран'''
+        '''display the data'''
 
         def list_to_str(mlist, razd='|'):
-            return f'{razd}'.join(mlist)
+            return f'{razd}'.join(map(str, mlist))
+
         result = f"\tМайнер {self.name} работает {self.timeup} min, " \
                  f"карты {self.card_count} из {self.card_count_norm}," \
                  f" хешрейд карт {list_to_str(self.hashlist)} " \
@@ -100,9 +110,10 @@ class Miner:
         print(result, end='')
 
     def check(self):
-        '''сравниваем эталонное значение с реальным, в случае необходимости запускаем тревогу,
-        если эталонное значение установлено ноль, то это означает что данный параметр проверять не надо'''
-
+        """we compare the reference value with the real one, if necessary, we trigger an alarm,
+        if the reference value is set to zero, it means that this parameter does not need to be checked
+        сравниваем эталонное значение с реальным, в случае необходимости запускаем тревогу,
+        если эталонное значение установлено ноль, то это означает что данный параметр проверять не надо"""
         temp = self.card_count_norm - self.card_count
         if temp > 0 and self.card_count_norm != 0:
             print(f"{self.name} вылетело {temp} карт")

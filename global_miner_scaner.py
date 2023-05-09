@@ -1,6 +1,5 @@
 import datetime
-import threading
-import time
+
 
 def all_miner_check(miners_online, miners_offline, sleep_time):
     print('\t =============печатаем сведеную таблицу===============')
@@ -11,17 +10,17 @@ def all_miner_check(miners_online, miners_offline, sleep_time):
             f"{rig.card_count:<5}")
     for rig_name, rig in miners_offline.items():
         print(f'\t {rig.name} offline  {datetime.datetime.now() - rig.time}')
+    all_miner_analise(miners_online, len(miners_offline))
 
-    # all_miner_analise(miners_status)
 
-
-# def all_miner_analise(miners_status):
-#     middle_temp_list = []
-#     miners_status_online = [x for x in miners_status if x.online]
-#     for rig in miners_status_online:
-#         if rig.card_count:
-#             middle_temp_list.append(sum(map(int, rig.templist))/rig.card_count)  # middle temperage for this rig
-#     print(f'онлайн {len(miners_status_online)}')
-#     print(f'оффлайн {len(miners_status) - len(miners_status_online)}')
-#     if middle_temp_list:
-#         print(f'средняя температура карт {round(sum(middle_temp_list)/len(middle_temp_list))}')
+def all_miner_analise(miners_online, count_offline):
+    middle_temp_list = []
+    for rig_name, rig in miners_online.items():
+        if rig.card_count:
+            middle_temp_list.append(sum(map(int, rig.templist)) / rig.card_count)  # middle temperage for this rig
+    print(f'онлайн {len(miners_online)}')
+    print(f'оффлайн {count_offline}')
+    if middle_temp_list:
+        print(f'средняя температура карт {round(sum(middle_temp_list) / len(middle_temp_list))}')
+    summ_hashrade = sum(rig.obhash for miner in miners_online)
+    print(f'общий хешрейд {summ_hashrade}')
