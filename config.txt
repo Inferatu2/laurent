@@ -3,4 +3,4 @@ reboot=true
 miner_connect_time_out=3
 miner_time_out_after_start = 120
 all_miner_result=5
-laurent_time_scan=12
+laurent_time_scan=20

@@ -4,7 +4,6 @@ import os
 import threading
 import time
 from datetime import datetime
-
 import DB_SQL
 import global_miner_scaner
 from config import conf_to_dict
@@ -47,15 +46,16 @@ def global_miner():
 def miner_offline(miner):
     miners_offline[miner.name] = miner
     miners_online.pop(miner.name, '')
-    miner_time_off = str(datetime.now() - miner.time)
-    miner_time_off = miner_time_off.split(':')[-1]  # -1 для теста, в оригинале -2
-    miner_time_off = miner_time_off.split('.')[0]  # строчка только для теста
-    if miner.reboot_bool and not miner.laurent_await:
-        miner_start_relay(miner, miner_time_off)
+    miner_time_off = datetime.now() - miner.time
+    miner_time_off = miner_time_off.total_seconds() // 1
+    time_from_last_reset = datetime.now() - miner.laurent_reset_time
+    time_from_last_reset = time_from_last_reset.total_seconds() // 1
+    if miner.reboot_bool:
+        miner_start_relay(miner, time_from_last_reset)
 
 
-def miner_start_relay(miner, miner_time_off):
-    if int(miner_time_off) > int(configuration['laurent_time_scan']) and not miner.laurent_await:
+def miner_start_relay(miner, time_from_last_reset):
+    if time_from_last_reset > int(configuration['laurent_time_scan']):
         """miner_time_off это минуты от общего оффлайн времени майнера
         configuration['laurent_time_scan'] это через сколько надо ребутать риг. Подразумевается, что ндао
         подохдать, может он сам восстановится
@@ -65,12 +65,11 @@ def miner_start_relay(miner, miner_time_off):
         if laurent_connect_data is not None:  # get None if this row does not exist
             relay = Laurent(laurent_connect_data)
             data_base.close()
-            relay.start(miner)
             print(f"{miner.name} ребутаем цикл {miner.number_attempt_reset} из ветки "
                   f"'rig {miner.name}, laurent {miner.laurent}, relay {miner.relay}'")
+            # relay.start(miner)
             thr = threading.Thread(target=relay.start, args=(miner,),
                                    name=f'rig {miner.name}, laurent {miner.laurent}, relay {miner.relay}')
-            miner.laurent_await = True
             thr.start()
         else:
             print(f'не существует реле {miner.laurent}')
@@ -81,6 +80,7 @@ def miner_online(miner):
     miner.json_to_class()  # распарсим список и сохраняем в атрибуты класса
     miner.print()  # выводим результат
     miner.time = datetime.now()
+    miner.number_attempt_reset = 0
     miners_online[miner.name] = miner
     miners_offline.pop(miner.name, '')
 

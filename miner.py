@@ -29,7 +29,7 @@ class Miner:
         self.message_bool = True if self.message_bool.lower() == 'yes' else False
         self.time = datetime.now()
         self.online = False
-        self.laurent_await = False
+        # self.laurent_await = False
         self.number_attempt_reset = 0
         self.err = ''
         self.timeup = 0
@@ -40,6 +40,7 @@ class Miner:
         self.templist = list()  # temperature list of card
         self.kullist = list()
         self.pool = ''
+        self.laurent_reset_time = datetime.now()
 
     def connect(self, timeout):
         """connect for this miner"""

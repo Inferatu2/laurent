@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import socket
 
 
-class Laurent():
+class Laurent:
     def __init__(self, args):
         self.number, self.name, self.ip, self.port, self.password = args
         self.number_attempt_reset = 0
@@ -43,24 +44,23 @@ class Laurent():
         temp = f'$KE,REL,{relay},1,{time}\r\n'.encode('utf-8')
         self.sock_laurent.sendall(temp)
         data_bytes = self.sock_laurent.recv(1024)
+        if data_bytes[0:7] == b'#REL,OK':
+            print(f'реле {relay} установлено на {time} сек')
 
     def rig_scan(self, miner):
         if not miner.online:
             if miner.number_attempt_reset == 0:
                 self.rig_reset(miner.relay, 1)
-                miner.laurent_await = True
             if miner.number_attempt_reset == 1:
                 self.rig_reset(miner.relay, 1)
-                miner.laurent_await = True
             if miner.number_attempt_reset == 2:
                 self.rig_reset(miner.relay, 5)
-                miner.laurent_await = True
             if miner.number_attempt_reset == 3:
                 self.rig_reset(miner.relay, 1)
-                miner.laurent_await = True
             if miner.number_attempt_reset > 3:
                 print('кирдык ригу')
                 return
+            miner.laurent_reset_time = datetime.now()
             miner.number_attempt_reset = miner.number_attempt_reset + 1
         else:
             return
@@ -69,7 +69,8 @@ class Laurent():
         self.sock_laurent.close()
 
     def start(self, miner):
-        if self.connect():
-            if self.login():
-                self.rig_scan(miner)
-            self.close()
+        if not miner.online:
+            if self.connect():
+                if self.login():
+                    self.rig_scan(miner)
+                self.close()
